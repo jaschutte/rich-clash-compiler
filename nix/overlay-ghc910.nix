@@ -46,9 +46,12 @@ in
 
   th-desugar = prev.th-desugar_1_17;
 
+  # tasty-flaky requires version >= 1.5 and < 1.6
+  tasty = prev.tasty_1_5;
+
   # We need a new tasty-flaky. The one from Hackage doesn't build for some weird
   # reason..
-  tasty-flaky = prev.callCabal2nix "tasty-flaky" (pkgs.fetchFromGitHub {
+  tasty-flaky = final.callCabal2nix "tasty-flaky" (pkgs.fetchFromGitHub {
     owner = "LaurentRDC";
     repo  = "tasty-flaky";
     rev = "fc31a9d622c1eb60030a50152258a9bef785e365";
