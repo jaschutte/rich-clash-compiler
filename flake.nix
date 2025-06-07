@@ -165,14 +165,38 @@
 
         devShells =
           let
-            makeDevShell = import ./nix/devshell.nix {
+            packageNames = [
+              "clash-benchmark"
+              "clash-cosim"
+              "clash-ffi"
+              "clash-ghc"
+              "clash-lib"
+              "clash-lib-hedgehog"
+              "clash-prelude"
+              "clash-prelude-hedgehog"
+              "clash-profiling"
+              "clash-profiling-prepare"
+              "clash-term"
+              "clash-testsuite"
+            ];
+            getPackage = version: pkgName: pkgs."clashPackages-${version}".${pkgName};
+
+            mkDevShell = version: pkgName: import ./nix/devshell.nix {
               inherit pkgs;
+              compilerVersion = version;
+              package = (getPackage version pkgName);
             };
 
-            clashDevShells =
-              pkgs.lib.attrsets.genAttrs ghcVersions makeDevShell;
+            devShellPair = version: pkgName: {
+                name = "${version}_${pkgName}";
+                value = mkDevShell version pkgName;
+              };
+
+            shellsForVersion = version: map (devShellPair version) packageNames;
+
+            devShells = builtins.listToAttrs (builtins.concatLists (map shellsForVersion ghcVersions));
           in
-          clashDevShells // { default = clashDevShells.${defaultGhcVersion}; };
+            devShells;
       }
     );
 }
