@@ -1,10 +1,21 @@
-{ pkgs, compilerVersion, package }:
+{ pkgs, compilerVersion }:
 let
   clashPkgs = pkgs."clashPackages-${compilerVersion}";
 in
   clashPkgs.shellFor {
     packages = p: [
-      package
+      clashPkgs.clash-benchmark
+      clashPkgs.clash-cosim
+      clashPkgs.clash-ffi
+      clashPkgs.clash-ghc
+      clashPkgs.clash-lib
+      clashPkgs.clash-lib-hedgehog
+      clashPkgs.clash-prelude
+      clashPkgs.clash-prelude-hedgehog
+      clashPkgs.clash-profiling
+      clashPkgs.clash-profiling-prepare
+      clashPkgs.clash-term
+      clashPkgs.clash-testsuite
     ];
 
     nativeBuildInputs = [
