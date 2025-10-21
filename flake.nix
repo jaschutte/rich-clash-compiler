@@ -187,9 +187,14 @@
             makeDevShell = import ./nix/devshell.nix {
               inherit pkgs;
             };
+            makeCiShell = import ./nix/ci-shell.nix {
+              inherit pkgs;
+            };
 
             clashDevShells =
-              pkgs.lib.attrsets.genAttrs ghcVersions makeDevShell;
+              pkgs.lib.attrsets.genAttrs ghcVersions makeDevShell // {
+                ci = builtins.listToAttrs (builtins.concatMap makeCiShell ghcVersions);
+              };
           in
           clashDevShells // { default = clashDevShells.${defaultGhcVersion}; };
       }

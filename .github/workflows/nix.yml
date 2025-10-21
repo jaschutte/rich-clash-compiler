@@ -10,6 +10,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Make each build a seperate step
+  # We also want to cache every succesfull build, even if other subprojects fail
+
   packages_common:
     name: Build Common (${{matrix.ghc}})
     runs-on: self-hosted
@@ -28,38 +31,14 @@ jobs:
       - name: Authenticate cache
         env:
           ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
-        run: .ci/attic-auth.sh
+        run: bash .github/scripts/attic-auth.sh
 
-        # Most clash- related packages depend on these three packages, having them be build
-        # sequentially and then the other packages in parallel speeds up CI
-        #
-        # We upload each build result to the local cache immediately, even if later steps fail it
-        # has some older steps cached, so the re-run goes faster
-        # Although I'm not entirely sure that it works...
-        # Well, it does not cause any harm so might as well keep it
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-prelude
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-lib
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-ghc
 
-      - run: |
-          nix build -L .#clashPackages-${{matrix.ghc}}.clash-prelude
-          attic push public $(nix path-info .#clashPackages-${{matrix.ghc}}.clash-prelude)
-
-      - run: |
-          nix build -L .#clashPackages-${{matrix.ghc}}.clash-lib
-          attic push public $(nix path-info .#clashPackages-${{matrix.ghc}}.clash-lib)
-      - run: |
-          nix build -L .#clashPackages-${{matrix.ghc}}.clash-ghc
-          attic push public $(nix path-info .#clashPackages-${{matrix.ghc}}.clash-ghc)
-
-      - name: Cachix
-        if: github.ref == 'refs/heads/master'
-        env:
-          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_SECRET }}
-        run: |
-          nix path-info .#clashPackages-${{matrix.ghc}}.clash-prelude | cachix push clash-lang
-          nix path-info .#clashPackages-${{matrix.ghc}}.clash-lib | cachix push clash-lang
-          nix path-info .#clashPackages-${{matrix.ghc}}.clash-ghc | cachix push clash-lang
-
-  packages_other:
-    name: Build Other (${{matrix.ghc}}, ${{matrix.package}})
+  packages_tests:
+    name: Unit & Doc Tests (${{matrix.ghc}})
     runs-on: self-hosted
     strategy:
       fail-fast: false
@@ -69,16 +48,28 @@ jobs:
           "ghc982",
           "ghc964"
         ]
-        package: [
-            "clash-benchmark",
-            "clash-cosim",
-            "clash-ffi",
-            "clash-lib-hedgehog",
-            "clash-prelude-hedgehog",
-            "clash-profiling",
-            "clash-profiling-prepare",
-            "clash-term",
-            "clash-testsuite"
+    needs: packages_common
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate cache
+        env:
+          ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
+        run: bash .github/scripts/attic-auth.sh
+
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-lib-hedgehog
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-prelude-hedgehog
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-cosim
+
+  packages_other:
+    name: Build Others (${{matrix.ghc}})
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        ghc: [
+          "ghc9101",
+          "ghc982",
+          "ghc964"
         ]
     needs: packages_common
     steps:
@@ -87,19 +78,12 @@ jobs:
       - name: Authenticate cache
         env:
           ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
-        run: .ci/attic-auth.sh
+        run: bash .github/scripts/attic-auth.sh
 
-      - name: Building ${{matrix.ghc}}
-        run: nix build -L .#clashPackages-${{matrix.ghc}}.${{matrix.package}}
-
-      - name: Local cache
-        run: attic push public $(nix path-info .#clashPackages-${{matrix.ghc}}.${{matrix.package}})
-
-      - name: Cachix
-        if: github.ref == 'refs/heads/master'
-        env:
-          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_SECRET }}
-        run: nix path-info .#clashPackages-${{matrix.ghc}}.${{matrix.package}} | cachix push clash-lang
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-term
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-benchmark
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-profiling-prepare
+      - run: .github/scripts/nix-build.sh .#clashPackages-${{matrix.ghc}}.clash-profiling
 
   developer_shells:
     name: Build Developer Shells (${{matrix.ghc}})
@@ -118,16 +102,66 @@ jobs:
       - name: Authenticate cache
         env:
           ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
-        run: .ci/attic-auth.sh
+        run: .github/scripts/attic-auth.sh
 
       - name: Nix devShell ${{matrix.ghc}}
-        run: nix build -L .#devShells.x86_64-linux.${{matrix.ghc}}
+        run: .github/scripts/nix-build.sh .#devShells.x86_64-linux.${{matrix.ghc}}
 
-      - name: Local cache
-        run: attic push public $(nix path-info .#devShells.x86_64-linux.${{matrix.ghc}})
+  ffi-tests:
+    name: Run FFI tests (${{matrix.ghc}})
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        ghc: [
+          ghc9101,
+          ghc982,
+          ghc964
+        ]
+      fail-fast: false
+    needs: packages_common
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Cachix
-        if: github.ref == 'refs/heads/master'
+      - name: Authenticate cache
         env:
-          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_SECRET }}
-        run: nix path-info .#devShells.x86_64-linux.${{matrix.ghc}} | cachix push clash-lang
+          ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
+        run: bash .github/scripts/attic-auth.sh
+
+      - name: Build FFI tests
+        run: nix build -L .#clash-ffi --out-link compiled
+
+      - name: Run FFI tests
+        run: ./compiled/bin/ffi-interface-tests
+
+  testsuite:
+    name: Run Testsuite (${{matrix.ghc}}, ${{matrix.testsuite}})
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        testsuite: [
+          testsuite-vhdl,
+          testsuite-verilog,
+          testsuite-systemverilog
+        ]
+        ghc: [
+          ghc9101,
+          ghc982,
+          ghc964
+        ]
+      fail-fast: false
+    needs: packages_tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate cache
+        env:
+          ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
+        run: bash .github/scripts/attic-auth.sh
+
+      - name: Build CI shell
+        run: |
+          nix develop .#devShells.x86_64-linux.ci.testsuite-${{matrix.ghc}} --profile /tmp/ci
+          attic push public $(nix path-info /tmp/ci)
+
+      - name: Testsuite (${{matrix.testsuite}})
+        run: nix develop /tmp/ci -c bash -- .github/scripts/run-unittests.sh ${{matrix.testsuite}}
