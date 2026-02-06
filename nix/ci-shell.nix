@@ -49,30 +49,13 @@ in
       ];
     };
   }
-  # {
-  #   name = "testsuite-${compilerVersion}";
-  #   value = clashPkgs.shellFor {
-  #     packages = p: [
-  #       p.clash-testsuite
-  #     ];
-  #     nativeBuildInputs = [
-  #       clashPkgs.cabal-install
-  #
-  #       pkgs.gcc
-  #       pkgs.z3
-  #       pkgs.ghdl-llvm
-  #       pkgs.symbiyosys
-  #       pkgs.verilator
-  #       pkgs.verilog
-  #       pkgs.yosys
-  #     ];
-  #   };
-  # }
   {
     name = "testsuite-${compilerVersion}";
-    value = pkgs.mkShell {
-      packages = [
-        clashPkgs.clash-testsuite
+    value = clashPkgs.shellFor {
+      packages = p: [
+        p.clash-testsuite
+      ];
+      nativeBuildInputs = [
         clashPkgs.cabal-install
 
         pkgs.gcc
@@ -85,4 +68,21 @@ in
       ];
     };
   }
+  # {
+  #   name = "testsuite-${compilerVersion}";
+  #   value = pkgs.mkShell {
+  #     packages = [
+  #       clashPkgs.clash-testsuite
+  #       clashPkgs.cabal-install
+  #
+  #       pkgs.gcc
+  #       pkgs.z3
+  #       pkgs.ghdl-llvm
+  #       pkgs.symbiyosys
+  #       pkgs.verilator
+  #       pkgs.verilog
+  #       pkgs.yosys
+  #     ];
+  #   };
+  # }
 ]

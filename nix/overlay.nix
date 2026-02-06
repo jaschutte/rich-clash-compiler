@@ -198,10 +198,24 @@ let
           ];
 
           postInstall = (old.postInstall or "") + ''
+            # This misses the database lock file, recache to create it
+            ${old.passthru.env.NIX_GHC}-pkg recache --package-db $out/lib/ghc-9.10.1/lib/package.conf.d
+
+            # Small wrapper to mask the clash executable to pass the proper package databases
+            # Setting the GHC_PACKAGE_PATH failed to work, so this is a workaround
+            # This is not set to the
+            mkdir -p $out/wrappers
+            cat >> $out/wrappers/clash <<EOF
+            #!/bin/sh
+            ${hfinal.clash-ghc}/bin/clash -package-db "${old.passthru.env.NIX_GHC_LIBDIR}/package.conf.d" -package-db "$out/lib/ghc-9.10.1/lib/package.conf.d" "\$@"
+            EOF
+            chmod +x $out/wrappers/clash
+
             wrapProgram $out/bin/clash-testsuite \
               --add-flags "--no-modelsim --no-vivado" \
               --prefix PATH : ${dirOf "${old.passthru.env.NIX_GHC}"} \
               --set GHC_PACKAGE_PATH "${old.passthru.env.NIX_GHC_LIBDIR}/package.conf.d:" \
+              --prefix PATH : $out/wrappers \
               --prefix PATH : ${prev.lib.makeBinPath [
                 prev.gcc
                 prev.ghdl-llvm

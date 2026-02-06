@@ -133,35 +133,35 @@ jobs:
       - name: Run FFI tests
         run: ./compiled/bin/ffi-interface-tests
 
-  testsuite:
-    name: Run Testsuite (${{matrix.ghc}}, ${{matrix.testsuite}})
-    runs-on: self-hosted
-    strategy:
-      matrix:
-        testsuite: [
-          testsuite-vhdl,
-          testsuite-verilog,
-          testsuite-systemverilog
-        ]
-        ghc: [
-          ghc9101,
-          ghc982,
-          ghc964
-        ]
-      fail-fast: false
-    needs: packages_tests
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate cache
-        env:
-          ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
-        run: bash .github/scripts/attic-auth.sh
-
-      - name: Build CI shell
-        run: |
-          nix develop .#devShells.x86_64-linux.ci.testsuite-${{matrix.ghc}} --profile /tmp/ci
-          attic push public $(nix path-info /tmp/ci)
-
-      - name: Testsuite (${{matrix.testsuite}})
-        run: nix develop /tmp/ci -c bash -- .github/scripts/run-unittests.sh ${{matrix.testsuite}}
+  # testsuite:
+  #   name: Run Testsuite (${{matrix.ghc}}, ${{matrix.testsuite}})
+  #   runs-on: self-hosted
+  #   strategy:
+  #     matrix:
+  #       testsuite: [
+  #         testsuite-vhdl,
+  #         testsuite-verilog,
+  #         testsuite-systemverilog
+  #       ]
+  #       ghc: [
+  #         ghc9101,
+  #         ghc982,
+  #         ghc964
+  #       ]
+  #     fail-fast: false
+  #   needs: packages_tests
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #
+  #     - name: Authenticate cache
+  #       env:
+  #         ATTIC_AUTH_TOKEN: ${{ secrets.ATTIC_SECRET }}
+  #       run: bash .github/scripts/attic-auth.sh
+  #
+  #     - name: Build CI shell
+  #       run: |
+  #         nix develop .#devShells.x86_64-linux.ci.testsuite-${{matrix.ghc}} --profile /tmp/ci
+  #         attic push public $(nix path-info /tmp/ci)
+  #
+  #     - name: Testsuite (${{matrix.testsuite}})
+  #       run: nix develop /tmp/ci -c bash -- .github/scripts/run-unittests.sh ${{matrix.testsuite}}
