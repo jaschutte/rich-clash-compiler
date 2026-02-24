@@ -1,0 +1,55 @@
+-- use latest packages from hackage
+index-state: HEAD
+
+-- don't generate haddock for all our deps
+package *
+  documentation: False
+
+  -- Dynamic executables save oozles of space when archiving it on CI
+  executable-dynamic: True
+
+package clash-prelude
+  ghc-options: -Werror
+  flags: +doctests -workaround-ghc-mmap-crash
+  tests: True
+  benchmarks: True
+
+package clash-lib
+  ghc-options: -Werror
+  tests: True
+  flags: +debug -workaround-ghc-mmap-crash
+
+package clash-ghc
+  ghc-options: -Werror
+  flags: -workaround-ghc-mmap-crash
+
+package clash-cosim
+  ghc-options: -Werror
+  tests: True
+
+  -- clash-cosim unittests fail with dynamic executables because of a bug in
+  -- Cabal-the-library in combination with custom setup where the library path
+  -- is not added to the RPATH
+  executable-dynamic: False
+
+package clash-prelude-hedgehog
+  ghc-options: -Werror
+  tests: True
+
+package clash-lib-hedgehog
+  ghc-options: -Werror
+  tests: True
+
+package clash-testsuite
+  ghc-options: -Werror
+  -- enable cosim
+  flags: +cosim -workaround-ghc-mmap-crash
+
+package clash-benchmark
+  ghc-options: -Werror
+
+package clash-profiling
+  ghc-options: -Werror
+
+package clash-profiling-prepare
+  ghc-options: -Werror

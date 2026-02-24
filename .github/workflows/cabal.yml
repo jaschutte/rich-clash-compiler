@@ -1,0 +1,93 @@
+name: Cabal testing
+
+on:
+  push:
+    branches:
+      - '*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-cabal
+  cancel-in-progress: true
+
+jobs:
+  cabal-build:
+    name: Cabal
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        ghc: [
+          "9.10.1",
+          "9.8.2",
+          "9.6.4"
+        ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{matrix.ghc}}
+          cabal-version: "3.12.1.0"
+
+      - name: Setup
+        run: .github/scripts/cabal-setup.sh
+
+      # TODO: `sdist clash-cosim` only works _after_ building it
+      - name: Generate source distributions
+        run: cabal v2-sdist clash-ffi clash-ghc clash-lib clash-lib-hedgehog clash-prelude clash-prelude-hedgehog
+
+      # Test that we can create a build plan with the index-state in cabal.project
+      - name: Test build plan
+        run: .github/scripts/test-build-plan.sh
+
+      - name: Build all packages
+        run: cabal v2-build all --write-ghc-environment-files=always
+
+      - name: Cache test binaries
+        run: |
+          TESTS="
+          clash-cosim:test
+          clash-lib:doctests
+          clash-lib:unittests
+          clash-prelude:doctests
+          clash-prelude:unittests
+          clash-testsuite:clash-testsuite
+          "
+          mkdir bin
+          for TEST in $TESTS; do
+            ln -s "$(realpath --relative-to=bin "$(cabal list-bin $TEST)")" bin/$TEST
+          done
+
+      - uses: actions/cache/save@v5
+        with:
+          path: bin
+          key: ${{github.run_id}}-cabal-tests-${{matrix.ghc}}
+
+  cabal-run:
+    name: Cabal
+    runs-on: self-hosted
+    needs: cabal-build
+    strategy:
+      matrix:
+        ghc: [
+          "9.10.1",
+          "9.8.2",
+          "9.6.4"
+        ]
+        test: [
+          "cosim:unittests",
+          "prelude:doctests",
+          "prelude:unittests",
+          "lib:doctests",
+          "lib:unittests"
+        ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore test binaries
+        uses: actions/cache/restore@v5
+        with:
+          path: bin
+          fail-on-cache-miss: true
+          key: ${{github.run_id}}-cabal-tests-${{matrix.ghc}}
+
+      - name: Run cabal test ${{matrix.test}} - ${{matrix.ghc}}
+        run: bin/${{matrix.test}}

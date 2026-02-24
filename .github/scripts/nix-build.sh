@@ -21,4 +21,3 @@ fi
 # Else, build!
 nix build -L "$PACKAGE" --rebuild
 attic push public $(nix path-info "$PACKAGE")
-
