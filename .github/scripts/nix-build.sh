@@ -1,7 +1,7 @@
 set -uo pipefail
 
 PACKAGE="$1"
-CACHE="http://diepenheim:9200/public"
+CACHE="http://192.168.102.136:9200/public"
 
 PATH_INFO=$(nix path-info "$PACKAGE")
 PATH_HASH=$(echo $PATH_INFO | sed -r 's|^/nix/store/(.{32}).*$|\1|')
