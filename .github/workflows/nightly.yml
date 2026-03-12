@@ -1,0 +1,41 @@
+name: Nightly
+
+on:
+  push:
+    branches:
+      - '*'
+
+jobs:
+  nightly:
+    name: Engineer Gaming
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ghc: [
+          "9.10.3",
+          # "9.8.2",
+          # "9.6.4"
+        ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install GHC
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: "3.12.1.0"
+
+      - name: Setup
+        run: .github/scripts/cabal_setup.sh
+
+      - name: Build
+        run: .github/scripts/cabal_build.sh
+
+      - name: Test setup
+        run: .github/scripts/cabal_setup_nocache.sh
+
+      - name: Test
+        run: echo ":)"
