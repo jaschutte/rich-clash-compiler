@@ -22,20 +22,44 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Install GHC
-        uses: haskell-actions/setup@v2
+        # TODO:
+        # https://github.com/marketplace/actions/s3-cache
+
+      # - name: Install GHC
+      #   uses: haskell-actions/setup@v2
+      #   with:
+      #     ghc-version: ${{ matrix.ghc }}
+      #     cabal-version: "3.12.1.0"
+
+      - name: Make cache dir
+        run: mkdir ~/non-nix-cache
+
+      - uses: tespkg/actions-cache@v1
         with:
-          ghc-version: ${{ matrix.ghc }}
-          cabal-version: "3.12.1.0"
+          endpoint: 192.168.102.136:9000
+          insecure: true
+          accessKey: "${{ secrets.S3_ACCESS_KEY }}"
+          secretKey: "${{ secrets.S3_SECRET_KEY }}"
+          bucket: runner
+          use-fallback: false
+          retry: true
+          key: test
+          path: ~/non-nix-cache
 
-      - name: Setup
-        run: .github/scripts/cabal_setup.sh
+      - name: List
+        run: ls ~/non-nix-cache
 
-      - name: Build
-        run: .github/scripts/cabal_build.sh
+      - name: Write
+        run: echo "Engineer Gaming" > ~/non-nix-cache/gaming
 
-      - name: Test setup
-        run: .github/scripts/cabal_setup_nocache.sh
-
-      - name: Test
-        run: echo ":)"
+      # - name: Setup
+      #   run: .github/scripts/cabal_setup.sh
+      #
+      # - name: Build
+      #   run: .github/scripts/cabal_build.sh
+      #
+      # - name: Test setup
+      #   run: .github/scripts/cabal_setup_nocache.sh
+      #
+      # - name: Test
+      #   run: echo ":)"
