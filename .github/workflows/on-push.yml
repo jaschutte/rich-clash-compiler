@@ -126,8 +126,6 @@ jobs:
         run: .ci/gh-setup.sh
 
       - name: Build & check documentation
-        env:
-          PKG: ${{ matrix.pkg }}
         run: .ci/build_docs.sh
 
   stack:
@@ -247,7 +245,7 @@ jobs:
           attic push public $(nix path-info .#clashPackages-${{matrix.ghc}}.clash-ghc)
 
       - name: Cachix
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1.10.0'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/1.10'
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_SECRET }}
         run: |
@@ -291,7 +289,7 @@ jobs:
         run: attic push public $(nix path-info .#clashPackages-${{matrix.ghc}}.${{matrix.package}})
 
       - name: Cachix
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1.10.0'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/1.10'
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_SECRET }}
         run: nix path-info .#clashPackages-${{matrix.ghc}}.${{matrix.package}} | cachix push clash-lang
@@ -324,7 +322,7 @@ jobs:
         run: attic push public $(nix path-info .#devShells.x86_64-linux.${{matrix.ghc}})
 
       - name: Cachix
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/v1.10.0'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/1.10'
         env:
           CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_SECRET }}
         run: nix path-info .#devShells.x86_64-linux.${{matrix.ghc}} | cachix push clash-lang
