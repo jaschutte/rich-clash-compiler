@@ -103,7 +103,12 @@
             clash-profiling
             clash-profiling-prepare
             clash-term
-            clash-testsuite;
+            clash-testsuite
+            # Debug versions, mostly used for the CI
+            clash-prelude-debug
+            clash-lib-debug
+            clash-ghc-debug
+            clash-testsuite-debug;
 
           default =
             pkgs."clashPackages-${defaultGhcVersion}".clash-ghc;
@@ -121,7 +126,12 @@
                 clash-profiling
                 clash-profiling-prepare
                 clash-term
-                clash-testsuite;
+                clash-testsuite
+                # Debug versions, mostly used for the CI
+                clash-prelude-debug
+                clash-lib-debug
+                clash-ghc-debug
+                clash-testsuite-debug;
             };
           }) ghcVersions);
 

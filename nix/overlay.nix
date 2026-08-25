@@ -75,7 +75,9 @@ let
 
   # An overlay with the packages in this repository.
   haskellInternalPackages =
-    hfinal: hprev: {
+    hfinal: hprev: let 
+      mkDebug = drv: prev.haskell.lib.compose.enableCabalFlag "debug" drv;
+    in {
       clash-benchmark =
         let
           unmodified = hprev.callCabal2nix "clash-benchmark" ../benchmark {
@@ -242,6 +244,79 @@ let
               ]}
           '';
         });
+
+      # A small set of packages with the debug flag enabled
+      # This is mostly useful for running the testsuite
+      clash-prelude-debug = mkDebug hfinal.clash-prelude;
+      clash-lib-debug = mkDebug (hfinal.clash-lib.override {
+        clash-prelude = hfinal.clash-prelude-debug;
+      });
+      clash-ghc-debug = mkDebug (hfinal.clash-ghc.override {
+        clash-prelude = hfinal.clash-prelude-debug;
+        clash-lib = hfinal.clash-lib-debug;
+      });
+      # The reason we don't simply `override` this is because the postInstall contains a direct
+      # reference to clash-ghc
+      # So a copy-and-paste was easier
+      clash-testsuite-debug =
+        let
+          unmodified =
+            hprev.callCabal2nix
+              "clash-testsuite"
+              ../tests {
+                clash-prelude = hfinal.clash-prelude-debug;
+                clash-lib = hfinal.clash-lib-debug;
+                clash-ghc = hfinal.clash-ghc-debug;
+              };
+        in
+        mkDebug (unmodified.overrideAttrs (old: {
+          buildInputs = (old.buildInputs or [ ]) ++ [
+            prev.makeWrapper
+          ];
+
+          postInstall = (old.postInstall or "") + ''
+            ghcBinDir=${dirOf "${old.passthru.env.NIX_GHC}"}
+            ghcLibDir="${old.passthru.env.NIX_GHC_LIBDIR}"
+            globalPackageDb="$ghcLibDir/package.conf.d"
+            testsuitePackageDb="$out/lib/''${ghcLibDir#*/lib/}/package.conf.d"
+            wrapperDir="$out/libexec/clash-testsuite-wrappers"
+
+            mkdir -p "$wrapperDir"
+
+            cat > "$wrapperDir/clash" <<EOF
+            #!${prev.runtimeShell}
+            exec ${hfinal.clash-ghc-debug}/bin/clash \
+              -package-db "$globalPackageDb" \
+              -package-db "$testsuitePackageDb" \
+              "\$@"
+            EOF
+            chmod +x "$wrapperDir/clash"
+
+            "$ghcBinDir/ghc-pkg" recache --package-db="$testsuitePackageDb"
+
+            wrapProgram $out/bin/clash-testsuite \
+              --prefix PATH : "$ghcBinDir" \
+              --prefix PATH : "$wrapperDir" \
+              --set GHC_PACKAGE_PATH "$testsuitePackageDb:$globalPackageDb:" \
+              --set USE_GLOBAL_CLASH 1 \
+              --prefix PATH : ${prev.lib.makeBinPath [
+                prev.gcc
+                # make and python3 are used in verilator invocations
+                prev.gnumake
+                prev.python3
+                final.ghdl-llvm
+                prev.sby
+                final.verilator
+                prev.iverilog
+                prev.yosys
+                prev.z3
+              ]} \
+              --set LIBRARY_PATH ${prev.lib.makeLibraryPath [
+                final.ghdl-llvm
+                prev.zlib.static
+              ]}
+          '';
+        }));
     };
 
   haskellOverlays =
